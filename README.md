@@ -60,7 +60,7 @@ Por favor, asegúrate de actualizar los tests según corresponda.
 
 Licencia
 
-Este proyecto está bajo la Licencia MIT. Consulta el archivo LICENSE para más detalles.
+La licencia me lleva la que me trajo
 
 Soporte
 
