@@ -1,1 +1,5 @@
-amar y querer no es igual
+La segunda pagina presentara los datos de una base de datos SQL. Esta base de datos debe poder ser manipulada por el usuario a traves de distintas acciones:
+
+Las tablas podran ser creadas en base de un nombre dado por el usuario. 
+
+Las tablas contaran con una columna "producto" (texto) y por la columna "Precio"(numeros flotantes, los numero flotantes no deben de tener mas de 2 decimales)
