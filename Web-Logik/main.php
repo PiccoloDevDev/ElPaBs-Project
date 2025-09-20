@@ -1,9 +1,144 @@
+<?php
+session_start();
+
+// ===========================================
+// CONFIGURACIÓN DE BASE DE DATOS - EDITAR ESTOS VALORES
+// ===========================================
+$db_host = 'localhost';        // Dirección del servidor (normalmente localhost con XAMPP)
+$db_name = 'elpabssss'; // Nombre de tu base de datos
+$db_user = 'root';            // Usuario de MySQL (por defecto 'root' en XAMPP)
+$db_pass = '';                // Contraseña de MySQL (vacía por defecto en XAMPP)
+// ===========================================
+
+// Conexión a la base de datos
+try {
+    $pdo = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8", $db_user, $db_pass);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch(PDOException $e) {
+    die("Error de conexión: " . $e->getMessage());
+}
+
+// Procesar solicitudes AJAX
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
+    header('Content-Type: application/json');
+    
+    if ($_POST['action'] == 'register') {
+        $username = trim($_POST['username']);
+        
+        if (empty($username)) {
+            echo json_encode(['error' => 'El nombre de usuario no puede estar vacío']);
+            exit;
+        }
+        
+        try {
+            // Verificar si el usuario ya existe
+            $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE username = ?");
+            $stmt->execute([$username]);
+            
+            if ($stmt->rowCount() > 0) {
+                echo json_encode(['error' => 'Este usuario ya existe']);
+            } else {
+                // Crear nuevo usuario
+                $stmt = $pdo->prepare("INSERT INTO usuarios (username, fecha_registro, ultima_sesion) VALUES (?, NOW(), NOW())");
+                $stmt->execute([$username]);
+                
+                // Obtener datos del usuario recién creado
+                $userId = $pdo->lastInsertId();
+                $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE id = ?");
+                $stmt->execute([$userId]);
+                $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                $_SESSION['user'] = $user;
+                
+                echo json_encode([
+                    'success' => 'Usuario creado exitosamente',
+                    'user' => [
+                        'username' => $user['username'],
+                        'fecha_registro' => date('d/m/Y', strtotime($user['fecha_registro'])),
+                        'ultima_sesion' => date('d/m/Y H:i', strtotime($user['ultima_sesion']))
+                    ]
+                ]);
+            }
+        } catch(PDOException $e) {
+            echo json_encode(['error' => 'Error en la base de datos: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+    
+    if ($_POST['action'] == 'login') {
+        $username = trim($_POST['username']);
+        
+        if (empty($username)) {
+            echo json_encode(['error' => 'El nombre de usuario no puede estar vacío']);
+            exit;
+        }
+        
+        try {
+            // Buscar usuario
+            $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE username = ?");
+            $stmt->execute([$username]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$user) {
+                echo json_encode(['error' => 'Usuario no encontrado']);
+            } else {
+                // Actualizar última sesión
+                $stmt = $pdo->prepare("UPDATE usuarios SET ultima_sesion = NOW() WHERE id = ?");
+                $stmt->execute([$user['id']]);
+                
+                // Obtener datos actualizados
+                $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE id = ?");
+                $stmt->execute([$user['id']]);
+                $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                $_SESSION['user'] = $user;
+                
+                echo json_encode([
+                    'success' => 'Sesión iniciada correctamente',
+                    'user' => [
+                        'username' => $user['username'],
+                        'fecha_registro' => date('d/m/Y', strtotime($user['fecha_registro'])),
+                        'ultima_sesion' => date('d/m/Y H:i', strtotime($user['ultima_sesion']))
+                    ]
+                ]);
+            }
+        } catch(PDOException $e) {
+            echo json_encode(['error' => 'Error en la base de datos: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+    
+    if ($_POST['action'] == 'logout') {
+        session_destroy();
+        echo json_encode(['success' => 'Sesión cerrada']);
+        exit;
+    }
+    
+    if ($_POST['action'] == 'check_session') {
+        if (isset($_SESSION['user'])) {
+            $user = $_SESSION['user'];
+            echo json_encode([
+                'logged_in' => true,
+                'user' => [
+                    'username' => $user['username'],
+                    'fecha_registro' => date('d/m/Y', strtotime($user['fecha_registro'])),
+                    'ultima_sesion' => date('d/m/Y H:i', strtotime($user['ultima_sesion']))
+                ]
+            ]);
+        } else {
+            echo json_encode(['logged_in' => false]);
+        }
+        exit;
+    }
+}
+?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Usuarios</title>
+    <title>Sistema de Usuarios - PHP + MySQL</title>
     <style>
         * {
             margin: 0;
@@ -154,6 +289,14 @@
             transform: translateY(-2px);
         }
 
+        .page-btn.tienda {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .page-btn.tienda:hover {
+            background: linear-gradient(135deg, #c0392b, #a93226);
+        }
+
         .logout-btn {
             margin-top: 30px;
             background: #e74c3c;
@@ -175,12 +318,18 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div id="loginSection">
             <h1>Sistema de Usuarios</h1>
+            <p style="text-align: center; color: #666; margin-bottom: 30px;">PHP + MySQL</p>
             
             <div class="columns">
                 <!-- Columna 1: Crear Usuario -->
@@ -220,6 +369,9 @@
                 <button class="page-btn" onclick="navigateToPage('perfil')">
                     👤 Mi Perfil
                 </button>
+                <a href="moded.php" class="page-btn tienda">
+                    🛒 Mi Tienda Digital
+                </a>
                 <button class="page-btn" onclick="navigateToPage('configuracion')">
                     ⚙️ Configuración
                 </button>
@@ -237,7 +389,7 @@
         <!-- Páginas individuales -->
         <div id="perfil" class="dashboard" style="display: none;">
             <h2>Mi Perfil</h2>
-            <p>Aquí puedes ver y editar tu información personal.</p>
+            <p>Aquí puedes ver tu información personal almacenada en la base de datos.</p>
             <div style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 5px;">
                 <h3>Información del Usuario:</h3>
                 <p><strong>Usuario:</strong> <span id="profileUser"></span></p>
@@ -268,19 +420,19 @@
 
         <div id="reportes" class="dashboard" style="display: none;">
             <h2>Reportes</h2>
-            <p>Visualiza estadísticas y reportes de tu actividad.</p>
+            <p>Visualiza estadísticas de la base de datos.</p>
             <div style="margin: 20px 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                 <div style="padding: 15px; background: #3498db; color: white; border-radius: 5px; text-align: center;">
                     <h4>Sesiones</h4>
                     <p style="font-size: 24px; margin: 10px 0;">15</p>
                 </div>
                 <div style="padding: 15px; background: #27ae60; color: white; border-radius: 5px; text-align: center;">
-                    <h4>Acciones</h4>
-                    <p style="font-size: 24px; margin: 10px 0;">42</p>
+                    <h4>Usuarios Activos</h4>
+                    <p style="font-size: 24px; margin: 10px 0;">8</p>
                 </div>
                 <div style="padding: 15px; background: #e74c3c; color: white; border-radius: 5px; text-align: center;">
-                    <h4>Errores</h4>
-                    <p style="font-size: 24px; margin: 10px 0;">3</p>
+                    <h4>Conexiones</h4>
+                    <p style="font-size: 24px; margin: 10px 0;">142</p>
                 </div>
             </div>
             <button class="btn" onclick="goBack()">← Volver al Dashboard</button>
@@ -288,19 +440,19 @@
 
         <div id="ayuda" class="dashboard" style="display: none;">
             <h2>Centro de Ayuda</h2>
-            <p>Encuentra respuestas a tus preguntas más frecuentes.</p>
+            <p>Información sobre el sistema PHP + MySQL.</p>
             <div style="margin: 20px 0; text-align: left;">
                 <div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
-                    <h4>¿Cómo cambio mi contraseña?</h4>
-                    <p>Ve a Configuración > Seguridad > Cambiar contraseña</p>
+                    <h4>¿Cómo funciona la base de datos?</h4>
+                    <p>Los usuarios se almacenan en una tabla MySQL con campos: id, username, fecha_registro, ultima_sesion</p>
+                </div>
+                <div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+                    <h4>¿Las sesiones son seguras?</h4>
+                    <p>Se usan sesiones PHP nativas ($_SESSION) para mantener el estado del usuario</p>
                 </div>
                 <div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
                     <h4>¿Cómo contacto soporte?</h4>
-                    <p>Envía un email a soporte@ejemplo.com</p>
-                </div>
-                <div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
-                    <h4>¿Cómo elimino mi cuenta?</h4>
-                    <p>Contacta al administrador para procesos de eliminación</p>
+                    <p>Este es un sistema de demostración. Revisa el código PHP para entender la implementación</p>
                 </div>
             </div>
             <button class="btn" onclick="goBack()">← Volver al Dashboard</button>
@@ -308,44 +460,63 @@
     </div>
 
     <script>
-        // Simulación de base de datos en memoria (en implementación real usar PHP + MySQL)
-        let users = JSON.parse(localStorage.getItem('users') || '[]');
         let currentSession = null;
+
+        // Verificar sesión al cargar la página
+        window.addEventListener('load', function() {
+            fetch('', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'action=check_session'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.logged_in) {
+                    loginUser(data.user);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
 
         // Registro de nuevo usuario
         document.getElementById('registerForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const username = document.getElementById('newUsername').value.trim();
             const messageDiv = document.getElementById('registerMessage');
+            const form = this;
             
             if (username === '') {
                 showMessage(messageDiv, 'Por favor ingresa un nombre de usuario', 'error');
                 return;
             }
             
-            // Verificar si el usuario ya existe
-            if (users.some(user => user.username === username)) {
-                showMessage(messageDiv, 'Este usuario ya existe', 'error');
-                return;
-            }
+            form.classList.add('loading');
             
-            // Crear nuevo usuario
-            const newUser = {
-                username: username,
-                registerDate: new Date().toLocaleDateString(),
-                lastLogin: new Date().toLocaleString()
-            };
-            
-            users.push(newUser);
-            localStorage.setItem('users', JSON.stringify(users));
-            
-            showMessage(messageDiv, 'Usuario creado exitosamente', 'success');
-            document.getElementById('newUsername').value = '';
-            
-            // Auto login después del registro
-            setTimeout(() => {
-                loginUser(newUser);
-            }, 1000);
+            fetch('', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `action=register&username=${encodeURIComponent(username)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                form.classList.remove('loading');
+                
+                if (data.error) {
+                    showMessage(messageDiv, data.error, 'error');
+                } else {
+                    showMessage(messageDiv, data.success, 'success');
+                    document.getElementById('newUsername').value = '';
+                    
+                    setTimeout(() => {
+                        loginUser(data.user);
+                    }, 1000);
+                }
+            })
+            .catch(error => {
+                form.classList.remove('loading');
+                showMessage(messageDiv, 'Error de conexión', 'error');
+                console.error('Error:', error);
+            });
         });
 
         // Inicio de sesión
@@ -353,38 +524,48 @@
             e.preventDefault();
             const username = document.getElementById('username').value.trim();
             const messageDiv = document.getElementById('loginMessage');
+            const form = this;
             
             if (username === '') {
                 showMessage(messageDiv, 'Por favor ingresa un nombre de usuario', 'error');
                 return;
             }
             
-            // Buscar usuario
-            const user = users.find(u => u.username === username);
+            form.classList.add('loading');
             
-            if (!user) {
-                showMessage(messageDiv, 'Usuario no encontrado', 'error');
-                return;
-            }
-            
-            // Actualizar última sesión
-            user.lastLogin = new Date().toLocaleString();
-            localStorage.setItem('users', JSON.stringify(users));
-            
-            showMessage(messageDiv, 'Iniciando sesión...', 'success');
-            document.getElementById('username').value = '';
-            
-            setTimeout(() => {
-                loginUser(user);
-            }, 1000);
+            fetch('', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `action=login&username=${encodeURIComponent(username)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                form.classList.remove('loading');
+                
+                if (data.error) {
+                    showMessage(messageDiv, data.error, 'error');
+                } else {
+                    showMessage(messageDiv, data.success, 'success');
+                    document.getElementById('username').value = '';
+                    
+                    setTimeout(() => {
+                        loginUser(data.user);
+                    }, 1000);
+                }
+            })
+            .catch(error => {
+                form.classList.remove('loading');
+                showMessage(messageDiv, 'Error de conexión', 'error');
+                console.error('Error:', error);
+            });
         });
 
         function loginUser(user) {
             currentSession = user;
             document.getElementById('currentUser').textContent = user.username;
             document.getElementById('profileUser').textContent = user.username;
-            document.getElementById('registerDate').textContent = user.registerDate;
-            document.getElementById('lastLogin').textContent = user.lastLogin;
+            document.getElementById('registerDate').textContent = user.fecha_registro;
+            document.getElementById('lastLogin').textContent = user.ultima_sesion;
             
             // Ocultar login y mostrar dashboard
             document.getElementById('loginSection').style.display = 'none';
@@ -408,18 +589,29 @@
         }
 
         function logout() {
-            currentSession = null;
-            
-            // Ocultar todas las páginas y mostrar login
-            ['dashboard', 'perfil', 'configuracion', 'reportes', 'ayuda'].forEach(page => {
-                document.getElementById(page).style.display = 'none';
+            fetch('', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'action=logout'
+            })
+            .then(response => response.json())
+            .then(data => {
+                currentSession = null;
+                
+                // Ocultar todas las páginas y mostrar login
+                ['dashboard', 'perfil', 'configuracion', 'reportes', 'ayuda'].forEach(page => {
+                    document.getElementById(page).style.display = 'none';
+                });
+                
+                document.getElementById('loginSection').style.display = 'block';
+                
+                // Limpiar mensajes
+                document.getElementById('registerMessage').style.display = 'none';
+                document.getElementById('loginMessage').style.display = 'none';
+            })
+            .catch(error => {
+                console.error('Error:', error);
             });
-            
-            document.getElementById('loginSection').style.display = 'block';
-            
-            // Limpiar mensajes
-            document.getElementById('registerMessage').style.display = 'none';
-            document.getElementById('loginMessage').style.display = 'none';
         }
 
         function showMessage(element, text, type) {
@@ -431,24 +623,6 @@
                 element.style.display = 'none';
             }, 3000);
         }
-
-        // Verificar si hay sesión activa al cargar
-        window.addEventListener('load', function() {
-            const savedSession = localStorage.getItem('currentSession');
-            if (savedSession) {
-                const user = JSON.parse(savedSession);
-                loginUser(user);
-            }
-        });
-
-        // Guardar sesión
-        window.addEventListener('beforeunload', function() {
-            if (currentSession) {
-                localStorage.setItem('currentSession', JSON.stringify(currentSession));
-            } else {
-                localStorage.removeItem('currentSession');
-            }
-        });
     </script>
 </body>
 </html>
