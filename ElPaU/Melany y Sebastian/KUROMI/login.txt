@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi App - Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Bordes iluminados alrededor de la pantalla */
+        .border-glow {
+            position: fixed;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .border-top {
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #9c27b0, #6a4c93, #2196f3, #3f51b5, #673ab7, #9c27b0);
+            background-size: 200% 100%;
+            animation: borderFlow 3s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(156, 39, 176, 0.5);
+        }
+
+        .border-right {
+            top: 0;
+            right: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, #2196f3, #3f51b5, #673ab7, #9c27b0, #6a4c93, #2196f3);
+            background-size: 100% 200%;
+            animation: borderFlow 3s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(33, 150, 243, 0.5);
+        }
+
+        .border-bottom {
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(270deg, #673ab7, #9c27b0, #6a4c93, #2196f3, #3f51b5, #673ab7);
+            background-size: 200% 100%;
+            animation: borderFlow 3s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(103, 58, 183, 0.5);
+        }
+
+        .border-left {
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(0deg, #6a4c93, #2196f3, #3f51b5, #673ab7, #9c27b0, #6a4c93);
+            background-size: 100% 200%;
+            animation: borderFlow 3s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(106, 76, 147, 0.5);
+        }
+
+        @keyframes borderFlow {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        /* Contenedor principal del login */
+        .login-container {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            position: relative;
+            backdrop-filter: blur(10px);
+        }
+
+        .login-container::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #9c27b0, #6a4c93, #2196f3, #3f51b5, #673ab7, #9c27b0);
+            background-size: 200% 200%;
+            animation: borderFlow 2s ease infinite;
+            border-radius: 22px;
+            z-index: -1;
+        }
+
+        /* Título de la app */
+        .app-title {
+            text-align: center;
+            font-size: 32px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 40px;
+        }
+
+        /* Contenedor del formulario */
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-label {
+            display: block;
+            color: #555;
+            font-weight: 500;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .form-input::placeholder {
+            color: #aaa;
+        }
+
+        /* Botón de login */
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Enlaces adicionales */
+        .login-links {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .login-links a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+            margin: 0 10px;
+            transition: color 0.3s ease;
+        }
+
+        .login-links a:hover {
+            color: #764ba2;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .login-container {
+                margin: 20px;
+                padding: 30px 20px;
+            }
+            
+            .app-title {
+                font-size: 28px;
+            }
+        }
+
+        /* Animación de entrada */
+        .login-container {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Bordes iluminados -->
+    <div class="border-glow border-top"></div>
+    <div class="border-glow border-right"></div>
+    <div class="border-glow border-bottom"></div>
+    <div class="border-glow border-left"></div>
+
+    <!-- Contenedor principal del login -->
+    <div class="login-container">
+        <h1 class="app-title">Mi App</h1>
+        
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label class="form-label" for="username">Nombre</label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    class="form-input" 
+                    placeholder="Ingresa tu nombre"
+                >
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="password">Contraseña</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    class="form-input" 
+                    placeholder="Ingresa tu contraseña"
+                >
+            </div>
+
+            <button type="submit" class="login-btn">Iniciar Sesión</button>
+        </form>
+
+        <div class="login-links">
+            <a href="#">¿Olvidaste tu contraseña?</a>
+            <a href="#">Crear cuenta</a>
+        </div>
+    </div>
+
+    <script>
+        // Manejar el envío del formulario para redirigir inmediatamente
+        function handleLogin(event) {
+            // Previene que el formulario se envíe de la forma tradicional
+            event.preventDefault(); 
+            
+            // Redirige directamente a la página 'buena.html'
+            window.location.href = 'buena.html';
+        }
+
+        // El resto del script para animaciones puede permanecer igual
+        document.querySelectorAll('.form-input').forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.classList.add('focused');
+            });
+            
+            input.addEventListener('blur', function() {
+                if (this.value === '') {
+                    this.parentElement.classList.remove('focused');
+                }
+            });
+        });
+
+        document.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                const form = document.getElementById('loginForm');
+                if (document.activeElement.tagName === 'INPUT') {
+                    form.dispatchEvent(new Event('submit'));
+                }
+            }
+        });
+    </script>
+</body>
+</html>
